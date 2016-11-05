@@ -1,0 +1,13 @@
+#!/bin/sh
+
+MODULES="libupipe libupipe_modules libupipe_framers libupump_ev"
+
+rm -f config.mak
+
+pkg-config --exists --print-errors $MODULES || exit 1
+
+echo CFLAGS += `pkg-config --cflags $MODULES` >> config.mak
+echo LDFLAGS += `pkg-config --libs $MODULES` >> config.mak
+
+echo OK
+exit 0
