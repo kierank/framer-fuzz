@@ -17,4 +17,3 @@ config.mak: configure
 
 clean:
 	rm -f framer-fuzz framer-fuzz.o
-	rm -f config.mak

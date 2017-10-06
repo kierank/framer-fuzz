@@ -25,7 +25,7 @@
  */
 
 /** @file
- * @short unit tests for H264 video framer module
+ * @short unit tests for S337 video framer module
  * Unlike MPEG-2, H264 is so broad that it is hopeless to write a unit test
  * with a decent coverage. So for the moment just parse and dump an H264
  * elementary stream.
@@ -58,7 +58,9 @@
 #include <upump-ev/upump_ev.h>
 #include <upipe-modules/upipe_file_source.h>
 #include <upipe-modules/upipe_dump.h>
-#include <upipe-framers/upipe_h264_framer.h>
+#include <upipe-modules/upipe_block_to_sound.h>
+#include <upipe-modules/upipe_null.h>
+#include <upipe-framers/upipe_s337_framer.h>
 
 #include <ev.h>
 
@@ -97,7 +99,7 @@ int main(int argc, char **argv)
 
     /* probes */
     struct uprobe *uprobe;
-    uprobe = uprobe_stdio_alloc(NULL, stderr, UPROBE_LOG_DEBUG);
+    uprobe = uprobe_stdio_alloc(NULL, stderr, UPROBE_LOG_VERBOSE);
     assert(uprobe != NULL);
     uprobe = uprobe_uref_mgr_alloc(uprobe, uref_mgr);
     assert(uprobe != NULL);
@@ -115,21 +117,29 @@ int main(int argc, char **argv)
     struct upipe *upipe_src = upipe_void_alloc(upipe_fsrc_mgr,
                    uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_DEBUG,
                                     "fsrc"));
+    upipe_set_output_size(upipe_src, 15360);
     upipe_mgr_release(upipe_fsrc_mgr);
     if (!ubase_check(upipe_set_uri(upipe_src, file))) {
         fprintf(stderr, "invalid file\n");
         exit(EXIT_FAILURE);
     }
+    
+    struct upipe_mgr *upipe_block_to_sound_mgr = upipe_block_to_sound_mgr_alloc();
+    struct upipe *upipe_block_to_sound  = upipe_void_alloc_output(upipe_src, 
+                   upipe_block_to_sound_mgr, uprobe_pfx_alloc(uprobe_use(uprobe),
+                   UPROBE_LOG_DEBUG, "block_to_sound"));
+    assert(upipe_block_to_sound != NULL);
+    upipe_release(upipe_block_to_sound);
 
-    struct upipe_mgr *h264f_mgr = upipe_h264f_mgr_alloc();
-    struct upipe *upipe = upipe_void_alloc_output(upipe_src, h264f_mgr,
+    struct upipe_mgr *s337f_mgr = upipe_s337f_mgr_alloc();
+    struct upipe *upipe = upipe_void_alloc_output(upipe_block_to_sound, s337f_mgr,
                    uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_DEBUG,
-                                    "h264f"));
+                                    "s337f"));
     assert(upipe != NULL);
 
     struct upipe_mgr *null_mgr = upipe_null_mgr_alloc();
     upipe = upipe_void_chain_output(upipe, null_mgr,
-                   uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_DEBUG,
+                   uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_VERBOSE,
                                     "null"));
     assert(upipe != NULL);
     upipe_release(upipe);
