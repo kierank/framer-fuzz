@@ -76,14 +76,48 @@
 #define UPUMP_POOL 0
 #define UPUMP_BLOCKER_POOL 0
 
+struct globalArgs_t {
+    enum format {
+        h264 = 1,
+        s337 = 2,
+    } format;
+    char *inputFile;           /* input files */
+} globalArgs;
+
 int main(int argc, char **argv)
 {
-    if (argc < 2) {
-        printf("Usage: %s <filename>\n", argv[0]);
-        exit(-1);
+
+    /* Initialize globalArgs before we get to work. */
+    globalArgs.format = 0; /* format: h264 = 1, 337 = 2 */
+    globalArgs.inputFile = NULL;
+
+    char *format = NULL;
+    int opt = 0;
+    while((opt = getopt(argc, argv, "i:f:")) != -1) {
+        switch( opt ) {
+            case 'f':
+                format = optarg;
+                if (strcmp("h264", format) == 0) {
+                    globalArgs.format = h264; /* true */
+                    break;
+                }
+                else if (strcmp("337", format) == 0) {
+                    globalArgs.format = s337; /* true */
+                    break;
+                }
+                break;
+            case 'i':
+                globalArgs.inputFile = optarg;
+                break;
+            default:
+                /* You won't actually get here. */
+                abort();
+        }
     }
 
-    const char *file = argv[1];
+    int fsrc_size = 1602 * sizeof(uint32_t) * 2;
+
+    const char *file = globalArgs.inputFile;
 
     /* structures managers */
     struct ev_loop *loop = ev_default_loop(0);
@@ -117,24 +151,35 @@ int main(int argc, char **argv)
     struct upipe *upipe_src = upipe_void_alloc(upipe_fsrc_mgr,
                    uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_DEBUG,
                                     "fsrc"));
-    upipe_set_output_size(upipe_src, 15360);
+    upipe_set_output_size(upipe_src, fsrc_size);
     upipe_mgr_release(upipe_fsrc_mgr);
     if (!ubase_check(upipe_set_uri(upipe_src, file))) {
         fprintf(stderr, "invalid file\n");
         exit(EXIT_FAILURE);
     }
-    
-    struct upipe_mgr *upipe_block_to_sound_mgr = upipe_block_to_sound_mgr_alloc();
-    struct upipe *upipe_block_to_sound  = upipe_void_alloc_output(upipe_src, 
-                   upipe_block_to_sound_mgr, uprobe_pfx_alloc(uprobe_use(uprobe),
-                   UPROBE_LOG_DEBUG, "block_to_sound"));
-    assert(upipe_block_to_sound != NULL);
-    upipe_release(upipe_block_to_sound);
 
-    struct upipe_mgr *s337f_mgr = upipe_s337f_mgr_alloc();
-    struct upipe *upipe = upipe_void_alloc_output(upipe_block_to_sound, s337f_mgr,
-                   uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_DEBUG,
-                                    "s337f"));
+    struct upipe *upipe = NULL;
+
+    if ( globalArgs.format == 1) {
+        struct upipe_mgr *h264f_mgr = upipe_h264f_mgr_alloc();
+        upipe = upipe_void_alloc_output(upipe_src, h264f_mgr,
+                    uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_DEBUG,
+                                     "h264f"));
+    }
+    else if ( globalArgs.format == 2 ) {
+        struct upipe_mgr *upipe_block_to_sound_mgr = upipe_block_to_sound_mgr_alloc();
+        struct upipe *upipe_block_to_sound  = upipe_void_alloc_output(upipe_src,
+                       upipe_block_to_sound_mgr, uprobe_pfx_alloc(uprobe_use(uprobe),
+                       UPROBE_LOG_DEBUG, "block_to_sound"));
+        assert(upipe_block_to_sound != NULL);
+        upipe_release(upipe_block_to_sound);
+
+        struct upipe_mgr *s337f_mgr = upipe_s337f_mgr_alloc();
+        upipe = upipe_void_alloc_output(upipe_block_to_sound, s337f_mgr,
+                       uprobe_pfx_alloc(uprobe_use(uprobe), UPROBE_LOG_DEBUG,
+                                        "s337f"));
+    }
+
     assert(upipe != NULL);
 
     struct upipe_mgr *null_mgr = upipe_null_mgr_alloc();
@@ -154,4 +199,3 @@ int main(int argc, char **argv)
     ev_default_destroy();
     return 0;
 }
-
