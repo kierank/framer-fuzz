@@ -48,6 +48,7 @@
 #include <upipe/uref.h>
 #include <upipe/uref_std.h>
 #include <upipe/uref_flow.h>
+#include <upipe/uref_sound_flow.h>
 #include <upipe/uref_clock.h>
 #include <upipe/uref_dump.h>
 #include <upipe/ubuf.h>
