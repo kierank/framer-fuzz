@@ -169,7 +169,7 @@ int main(int argc, char **argv)
     }
     else if ( globalArgs.format == 2 ) {
         
-        struct uref *flow_def;
+        struct uref *flow_def = uref_std_alloc(uref_mgr);
         uref_flow_set_def(flow_def, "sound.s32.");
         uref_sound_flow_set_channels(flow_def, 2);
         uref_sound_flow_set_sample_size(flow_def, 8);
